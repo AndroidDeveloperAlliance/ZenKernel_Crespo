@@ -22,6 +22,7 @@ static const int write_expire = 2 * HZ; /* ditto for writes, these limits are SO
 static const int writes_starved = 2;    /* max times reads can starve a write */
 static const int fifo_batch = 16;       /* # of sequential requests treated as one
 				     by the above parameters. For throughput. */
+static const int batch_distance = 0;
 
 struct deadline_data {
 	/*
@@ -49,6 +50,7 @@ struct deadline_data {
 	int fifo_batch;
 	int writes_starved;
 	int front_merges;
+	int batch_distance;
 };
 
 static void deadline_move_request(struct deadline_data *, struct request *);
@@ -238,6 +240,13 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
 	return 0;
 }
 
+static inline int
+deadline_is_close_request(struct deadline_data *dd, struct request *rq)
+{
+	return rq->sector >= dd->last_sector &&
+		rq->sector <= dd->last_sector + dd->batch_distance*2;
+}
+
 /*
  * deadline_dispatch_requests selects the best request according to
  * read/write expire, fifo_batch, etc
@@ -356,6 +365,7 @@ static void *deadline_init_queue(struct request_queue *q)
 	dd->writes_starved = writes_starved;
 	dd->front_merges = 1;
 	dd->fifo_batch = fifo_batch;
+	dd->batch_distance = batch_distance;
 	return dd;
 }
 
@@ -392,6 +402,7 @@ SHOW_FUNCTION(deadline_write_expire_show, dd->fifo_expire[WRITE], 1);
 SHOW_FUNCTION(deadline_writes_starved_show, dd->writes_starved, 0);
 SHOW_FUNCTION(deadline_front_merges_show, dd->front_merges, 0);
 SHOW_FUNCTION(deadline_fifo_batch_show, dd->fifo_batch, 0);
+SHOW_FUNCTION(deadline_batch_distance_show, dd->batch_distance, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -415,6 +426,7 @@ STORE_FUNCTION(deadline_write_expire_store, &dd->fifo_expire[WRITE], 0, INT_MAX,
 STORE_FUNCTION(deadline_writes_starved_store, &dd->writes_starved, INT_MIN, INT_MAX, 0);
 STORE_FUNCTION(deadline_front_merges_store, &dd->front_merges, 0, 1, 0);
 STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
+STORE_FUNCTION(deadline_batch_distance_store, &dd->batch_distance, 0, INT_MAX, 0);
 #undef STORE_FUNCTION
 
 #define DD_ATTR(name) \
@@ -427,6 +439,7 @@ static struct elv_fs_entry deadline_attrs[] = {
 	DD_ATTR(writes_starved),
 	DD_ATTR(front_merges),
 	DD_ATTR(fifo_batch),
+	DD_ATTR(batch_distance),
 	__ATTR_NULL
 };
 
