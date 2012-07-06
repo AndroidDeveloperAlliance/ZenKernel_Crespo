@@ -575,4 +575,10 @@ config PN544
 	help
 	  NXP PN544 Near Field Communication controller support.
 
+config FSYNC_CONTROL
+        bool "Support for FSync Control"
+        default y
+        help
+          Say Y here to enable FSync Control
+
 endif # MISC_DEVICES
