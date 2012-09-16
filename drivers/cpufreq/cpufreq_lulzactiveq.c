@@ -48,6 +48,21 @@
 
 static atomic_t active_count = ATOMIC_INIT(0);
 
+#ifdef MODULE
+#include <linux/kallsyms.h>
+static int (*gm_cpu_up)(unsigned int cpu);
+static unsigned long (*gm_nr_running)(void);
+static int (*gm_sched_setscheduler_nocheck)(struct task_struct *, int,
+                              const struct sched_param *);
+static void (*gm___put_task_struct)(struct task_struct *t);
+static int (*gm_wake_up_process)(struct task_struct *tsk);
+#define cpu_up (*gm_cpu_up)
+#define nr_running (*gm_nr_running)
+#define put_task_struct (*gm___put_task_struct)
+#define wake_up_process (*gm_wake_up_process)
+#define sched_setscheduler_nocheck (*gm_sched_setscheduler_nocheck)
+#endif
+
 struct cpufreq_lulzactive_cpuinfo {
 	struct timer_list cpu_timer;
 	int timer_idlecancel;
@@ -2042,6 +2057,14 @@ static int __init cpufreq_lulzactive_init(void)
 	ret = init_rq_avg();
 	if(ret) return ret;
 
+#ifdef MODULE
+	gm_cpu_up = (int (*)(unsigned int cpu))kallsyms_lookup_name("cpu_up");
+	gm_nr_running = (unsigned long (*)(void))kallsyms_lookup_name("nr_running");
+	gm_sched_setscheduler_nocheck = (int (*)(struct task_struct *, int,
+    	const struct sched_param *))kallsyms_lookup_name("sched_setscheduler_nocheck");
+	gm___put_task_struct = (void (*)(struct task_struct *))kallsyms_lookup_name("__put_task_struct");
+	gm_wake_up_process = (int (*)(struct task_struct *))kallsyms_lookup_name("wake_up_process");
+#endif
 	hotplug_history = kzalloc(sizeof(struct cpu_usage_history), GFP_KERNEL);
 	if (!hotplug_history) {
 		pr_err("%s cannot create lulzactive hotplug history array\n", __func__);
