@@ -306,7 +306,7 @@ static int hotplug_freq[4][2] = {
 static int cpufreq_governor_lulzactive(struct cpufreq_policy *policy,
 		unsigned int event);
 
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVE
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVEQ
 static
 #endif
 struct cpufreq_governor cpufreq_gov_lulzactive = {
@@ -2111,7 +2111,7 @@ err_queue:
 	return (ret) ? ret : -ENOMEM;
 }
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVE
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVEQ
 fs_initcall(cpufreq_lulzactive_init);
 #else
 module_init(cpufreq_lulzactive_init);
