@@ -243,8 +243,8 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
 static inline int
 deadline_is_close_request(struct deadline_data *dd, struct request *rq)
 {
-	return rq->sector >= dd->last_sector &&
-		rq->sector <= dd->last_sector + dd->batch_distance*2;
+	return blk_rq_pos(rq) >= dd->last_sector &&
+		blk_rq_pos(rq) <= dd->last_sector + dd->batch_distance*2;
 }
 
 /*
