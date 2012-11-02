@@ -101,7 +101,7 @@ static int limit_adjust_cpufreq_notifier(struct notifier_block *nb,
 	static int policy_min = 100000;
 	static bool flipped = false;
 
-	if ((event != CPUFREQ_ADJUST) && (flipped == false))
+	if (policy->cur >= MIN_CPU_KHZ_FREQ)
 		return 0;   // this bit seems to prevent my code from working
 
 	if (flipped == false)
