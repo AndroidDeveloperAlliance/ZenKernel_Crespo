@@ -33,7 +33,7 @@
 #include <linux/security.h>
 #include <linux/ptrace.h>
 
-int sysctl_panic_on_oom;
+int sysctl_panic_on_oom = 2;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks = 1;
 static DEFINE_SPINLOCK(zone_scan_lock);
