@@ -105,7 +105,7 @@ const unsigned long int_volt_max = 1250000;
 static struct s5pv210_dvs_conf dvs_conf[] = {
 	[L0] = {
 		.arm_volt   = 1450000,
-		.int_volt   = 1200000,
+		.int_volt   = 1150000,
 	},
 	[L1] = {
 		.arm_volt   = 1400000,
@@ -539,6 +539,7 @@ static int check_mem_type(void __iomem *dmc_reg)
 static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned long mem_type;
+	int ret;
 
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -584,7 +585,12 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = 40000;
 
-	return cpufreq_frequency_table_cpuinfo(policy, s5pv210_freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy, s5pv210_freq_table);
+
+	if (!ret)
+		policy->max = 1000000;
+
+	return ret;
 }
 
 static int s5pv210_cpufreq_notifier_event(struct notifier_block *this,
