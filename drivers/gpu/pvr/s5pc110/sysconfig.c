@@ -98,15 +98,29 @@ static int limit_adjust_cpufreq_notifier(struct notifier_block *nb,
 					 unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
+	static int policy_min = 100000;
+	static bool flipped = false;
 
-	if (event != CPUFREQ_ADJUST)
-		return 0;
+	if (policy->cur >= MIN_CPU_KHZ_FREQ)
+		return 0;   // this bit seems to prevent my code from working
 
-	/* This is our indicator of GPU activity */
-	if (regulator_is_enabled(g3d_pd_regulator))
-		cpufreq_verify_within_limits(policy, MIN_CPU_KHZ_FREQ,
+	if (flipped == false)
+	{
+		if (regulator_is_enabled(g3d_pd_regulator))
+		{
+			policy_min = policy->user_policy.min;
+			cpufreq_verify_within_limits(policy, MIN_CPU_KHZ_FREQ,
 					     policy->cpuinfo.max_freq);
-
+			flipped = true;
+		}
+	} else 
+	{
+		if (!regulator_is_enabled(g3d_pd_regulator))
+		{
+			policy->min = policy_min;
+			flipped = false;
+		}
+	}
 	return 0;
 }
 
