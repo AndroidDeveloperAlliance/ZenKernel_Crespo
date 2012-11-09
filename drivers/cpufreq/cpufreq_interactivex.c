@@ -548,7 +548,9 @@ static void interactivex_suspend(int suspend)
         if (!enabled) return;
 	  if (!suspend) { 
 		mutex_lock(&set_speed_lock);
+#ifdef CONFIG_SMP
 		if (num_online_cpus() < 2) cpu_up(1);
+#endif
 		for_each_cpu(cpu, &tmp_mask) {
 		  pcpu = &per_cpu(cpuinfo, cpu);
 		  smp_rmb();
@@ -567,7 +569,9 @@ static void interactivex_suspend(int suspend)
 		    continue;
 		  __cpufreq_driver_target(pcpu->policy, suspendfreq, CPUFREQ_RELATION_H);
 		}
+#ifdef CONFIG_SMP
 		if (num_online_cpus() > 1) cpu_down(1);
+#endif
 		mutex_unlock(&set_speed_lock);
                 pr_info("[imoseyon] interactivex suspended cpu1 down\n");
 	  }
