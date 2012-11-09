@@ -910,7 +910,9 @@ static void cpu_up_work(struct work_struct *work)
 
 	if (online == 1) {
 		printk(KERN_ERR "CPU_UP 3\n");
+#ifdef CONFIG_SMP
 		cpu_up(num_possible_cpus() - 1);
+#endif
 		nr_up -= 1;
 	}
 
@@ -920,7 +922,9 @@ static void cpu_up_work(struct work_struct *work)
 		if (cpu == 0)
 			continue;
 		printk(KERN_ERR "CPU_UP %d\n", cpu);
+#ifdef CONFIG_SMP
 		cpu_up(cpu);
+#endif
 	}
 }
 
@@ -938,7 +942,9 @@ static void cpu_down_work(struct work_struct *work)
 		if (cpu == 0)
 			continue;
 		printk(KERN_ERR "CPU_DOWN %d\n", cpu);
+#ifdef CONFIG_SMP
 		cpu_down(cpu);
+#endif
 		if (--nr_down == 0)
 			break;
 	}
