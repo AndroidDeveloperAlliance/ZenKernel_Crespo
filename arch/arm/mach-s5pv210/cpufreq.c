@@ -99,8 +99,13 @@ struct s5pv210_dvs_conf {
 	unsigned long	int_volt; /* uV */
 };
 
+#ifdef CONFIG_CUSTOM_VOLTAGE
+unsigned long arm_volt_max = 1600000;
+unsigned long int_volt_max = 1250000;
+#else
 const unsigned long arm_volt_max = 1600000;
 const unsigned long int_volt_max = 1250000;
+#endif
 
 static struct s5pv210_dvs_conf dvs_conf[] = {
 	[L0] = {
@@ -216,7 +221,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 			  unsigned int relation)
 {
 	unsigned long reg;
-	unsigned int index, priv_index;
+	unsigned int index;
 	unsigned int pll_changing = 0;
 	unsigned int bus_speed_changing = 0;
 	unsigned int arm_volt, int_volt;
@@ -252,13 +257,6 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	if (freqs.new == freqs.old)
 		goto out;
 
-	/* Finding current running level index */
-	if (cpufreq_frequency_table_target(policy, s5pv210_freq_table,
-					   freqs.old, relation, &priv_index)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	arm_volt = dvs_conf[index].arm_volt;
 	int_volt = dvs_conf[index].int_volt;
 
@@ -280,11 +278,11 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* Check if there need to change PLL */
-	if ((index == L3) || (priv_index == L3))
+	if ((index == L3) || (freqs.old >= s5pv210_freq_table[L3].frequency))
 		pll_changing = 1;
 
 	/* Check if there need to change System bus clock */
-	if ((index == L7) || (priv_index == L7))
+	if ((index == L7) || (freqs.old == s5pv210_freq_table[L7].frequency))
 		bus_speed_changing = 1;
 
 	if (bus_speed_changing) {
@@ -536,6 +534,87 @@ static int check_mem_type(void __iomem *dmc_reg)
 	return val >> 8;
 }
 
+#ifdef CONFIG_CUSTOM_VOLTAGE
+static const int num_freqs = sizeof(dvs_conf) / sizeof(struct s5pv210_dvs_conf);
+
+void customvoltage_updatearmvolt(unsigned long * arm_voltages)
+{
+    int i;
+
+    mutex_lock(&set_freq_lock);
+
+    for (i = 0; i < num_freqs; i++) {
+	if (arm_voltages[i] > arm_volt_max)
+	    arm_voltages[i] = arm_volt_max;
+	dvs_conf[i].arm_volt = arm_voltages[i];
+    }
+
+    mutex_unlock(&set_freq_lock);
+
+    return;
+}
+EXPORT_SYMBOL(customvoltage_updatearmvolt);
+
+void customvoltage_updateintvolt(unsigned long * int_voltages)
+{
+    int i;
+
+    mutex_lock(&set_freq_lock);
+
+    for (i = 0; i < num_freqs; i++) {
+	if (int_voltages[i] > int_volt_max)
+	    int_voltages[i] = int_volt_max;
+	dvs_conf[i].int_volt = int_voltages[i];
+    }
+
+    mutex_unlock(&set_freq_lock);
+
+    return;
+}
+EXPORT_SYMBOL(customvoltage_updateintvolt);
+
+void customvoltage_updatemaxvolt(unsigned long * max_voltages)
+{
+    mutex_lock(&set_freq_lock);
+
+    arm_volt_max = max_voltages[0];
+    int_volt_max = max_voltages[1];
+
+    mutex_unlock(&set_freq_lock);
+
+    return;
+}
+EXPORT_SYMBOL(customvoltage_updatemaxvolt);
+
+int customvoltage_numfreqs(void)
+{
+    return num_freqs;
+}
+EXPORT_SYMBOL(customvoltage_numfreqs);
+
+void customvoltage_freqvolt(unsigned long * freqs, unsigned long * arm_voltages,
+			    unsigned long * int_voltages, unsigned long * max_voltages)
+{
+    int i = 0;
+
+    while (s5pv210_freq_table[i].frequency != CPUFREQ_TABLE_END) {
+	freqs[s5pv210_freq_table[i].index] = s5pv210_freq_table[i].frequency;
+	i++;
+    }
+
+    for (i = 0; i < num_freqs; i++) {
+	arm_voltages[i] = dvs_conf[i].arm_volt;
+	int_voltages[i] = dvs_conf[i].int_volt;
+    }
+
+    max_voltages[0] = arm_volt_max;
+    max_voltages[1] = int_volt_max;
+
+    return;
+}
+EXPORT_SYMBOL(customvoltage_freqvolt);
+#endif
+
 static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned long mem_type;
@@ -627,6 +706,12 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+/* Make sure we populate scaling_available_freqs in sysfs - netarchy */
+static struct freq_attr *clocking_cpufreq_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+};
+
 static struct cpufreq_driver s5pv210_driver = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= s5pv210_verify_speed,
@@ -634,6 +719,7 @@ static struct cpufreq_driver s5pv210_driver = {
 	.get		= s5pv210_getspeed,
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",
+	.attr		= clocking_cpufreq_attr,
 #ifdef CONFIG_PM
 	.suspend	= s5pv210_cpufreq_suspend,
 	.resume		= s5pv210_cpufreq_resume,
