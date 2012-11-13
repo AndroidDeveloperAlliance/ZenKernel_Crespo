@@ -190,7 +190,7 @@ static char * const zone_names[MAX_NR_ZONES] = {
 };
 
 int min_free_kbytes = 4096;
-int min_free_order_shift = 1;
+int min_free_order_shift = 4;
 
 static unsigned long __meminitdata nr_kernel_pages;
 static unsigned long __meminitdata nr_all_pages;
