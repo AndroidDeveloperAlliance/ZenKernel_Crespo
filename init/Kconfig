@@ -46,6 +46,13 @@ config ZEN_INFO_VERSION_CODE
  
 endmenu
 
+config FOR_CYANOGENMOD
+	bool "Build kernel for CyanogenMOD"
+	---help---
+	  CyanogenMOD is not compatible with the AOSP kernel source,
+	  this makes it compatible with CM, but breaks it for AOSP
+	  based roms.
+
 menu "General setup"
 
 config EXPERIMENTAL

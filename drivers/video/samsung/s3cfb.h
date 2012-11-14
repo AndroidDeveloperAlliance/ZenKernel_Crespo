@@ -232,8 +232,13 @@ struct s3cfb_global {
 	int			irq;
 	struct fb_info		**fb;
 
-	wait_queue_head_t	vsync_wait;
+	wait_queue_head_t	vsync_wq;
 	ktime_t			vsync_timestamp;
+
+#ifndef CONFIG_FOR_CYANOGENMOD
+	int                     vsync_state;
+	struct task_struct      *vsync_thread;
+#endif
 
 	/* fimd */
 	int			enabled;
@@ -315,8 +320,10 @@ struct s3cfb_next_info {
 #define S3CFB_SET_WIN_ADDR		_IOW('F', 309, unsigned long)
 #define S3CFB_SET_WIN_MEM		_IOW('F', 310, \
 						enum s3cfb_mem_owner_t)
+#ifdef CONFIG_FOR_CYANOGENMOD
 // New IOCTL that waits for vsync and returns a timestamp
-#define S3CFB_WAIT_FOR_VSYNC		_IOR('F', 311, u64)
+# define S3CFB_WAIT_FOR_VSYNC		_IOR('F', 311, u64)
+#endif
 
 /*
  * E X T E R N S
