@@ -28,11 +28,13 @@ config IRQ_WORK
 	depends on HAVE_IRQ_WORK
 
 config FOR_CYANOGENMOD
-	bool "Build kernel for CyanogenMOD"
+	bool "Build kernel for CyanogenMOD by default"
 	---help---
 	  CyanogenMOD is not compatible with the AOSP kernel source,
 	  this makes it compatible with CM, but breaks it for AOSP
 	  based roms.
+
+	  This sets the cm_support sysfs to work for CM by default.
 
 menu "General setup"
 

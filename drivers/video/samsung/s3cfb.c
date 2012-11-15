@@ -30,6 +30,7 @@
 #include <linux/memory.h>
 #include <linux/cpufreq.h>
 #include <linux/kthread.h>
+#include <linux/cm_support.h>
 #include <plat/clock.h>
 #include <plat/cpu-freq.h>
 #include <plat/media.h>
@@ -603,23 +604,15 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 		int vsync;
 	} p;
 
-	switch (cmd) {
-	case FBIO_WAITFORVSYNC:
+	if (cmd == FBIO_WAITFORVSYNC) {
 		s3cfb_wait_for_vsync(fbdev);
-		break;
-
-#ifdef CONFIG_FOR_CYANOGENMOD
-	// Custom IOCTL added to return the VSYNC timestamp
-	case S3CFB_WAIT_FOR_VSYNC:
-		ret = s3cfb_wait_for_vsync(fbdev);
-		if(ret > 0) {
-			u64 nsecs = ktime_to_ns(fbdev->vsync_timestamp);
-			copy_to_user((void*)arg, &nsecs, sizeof(u64));
-		}
-		break;
-#endif
-
-	case S3CFB_WIN_POSITION:
+	} else if (cmd == S3CFB_WAIT_FOR_VSYNC && sysctl_cm_support) {
+                ret = s3cfb_wait_for_vsync(fbdev);
+                if(ret > 0) {
+                        u64 nsecs = ktime_to_ns(fbdev->vsync_timestamp);
+                        copy_to_user((void*)arg, &nsecs, sizeof(u64));
+                }
+	} else if (cmd == S3CFB_WIN_POSITION) {
 		if (copy_from_user(&p.user_window,
 				   (struct s3cfb_user_window __user *)arg,
 				   sizeof(p.user_window)))
@@ -643,9 +636,7 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 
 			s3cfb_set_window_position(fbdev, win->id);
 		}
-		break;
-
-	case S3CFB_WIN_SET_PLANE_ALPHA:
+	} else if (cmd == S3CFB_WIN_SET_PLANE_ALPHA) {
 		if (copy_from_user(&p.user_alpha,
 				   (struct s3cfb_user_plane_alpha __user *)arg,
 				   sizeof(p.user_alpha)))
@@ -659,9 +650,7 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 
 			s3cfb_set_alpha_blending(fbdev, win->id);
 		}
-		break;
-
-	case S3CFB_WIN_SET_CHROMA:
+	} else if (cmd == S3CFB_WIN_SET_CHROMA) {
 		if (copy_from_user(&p.user_chroma,
 				   (struct s3cfb_user_chroma __user *)arg,
 				   sizeof(p.user_chroma)))
@@ -674,9 +663,7 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 
 			s3cfb_set_chroma_key(fbdev, win->id);
 		}
-		break;
-
-	case S3CFB_SET_VSYNC_INT:
+	} else if (cmd == S3CFB_SET_VSYNC_INT) {
 		if (get_user(p.vsync, (int __user *)arg))
 			ret = -EFAULT;
 		else {
@@ -685,9 +672,7 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 
 			s3cfb_set_vsync_interrupt(fbdev, p.vsync);
 		}
-		break;
-
-	case S3CFB_GET_CURR_FB_INFO:
+	} else if (cmd == S3CFB_GET_CURR_FB_INFO) {
 		next_fb_info.phy_start_addr = fix->smem_start;
 		next_fb_info.xres = var->xres;
 		next_fb_info.yres = var->yres;
@@ -702,7 +687,6 @@ static int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 				 (struct s3cfb_next_info *) &next_fb_info,
 				 sizeof(struct s3cfb_next_info)))
 			return -EFAULT;
-		break;
 	}
 
 	return ret;
@@ -926,7 +910,6 @@ static int s3cfb_sysfs_store_win_power(struct device *dev,
 	return len;
 }
 
-#ifndef CONFIG_FOR_CYANOGENMOD
 static int s3cfb_wait_for_vsync_thread(void *data)
 {
 	struct s3cfb_global *fbdev = data;
@@ -951,7 +934,6 @@ static int s3cfb_wait_for_vsync_thread(void *data)
 
 	return 0;
 }
-#endif
 
 static DEVICE_ATTR(win_power, S_IRUGO | S_IWUSR,
 		   s3cfb_sysfs_show_win_power, s3cfb_sysfs_store_win_power);
@@ -1091,14 +1073,14 @@ static int __devinit s3cfb_probe(struct platform_device *pdev)
 	register_early_suspend(&fbdev->early_suspend);
 #endif
 
-#ifndef CONFIG_FOR_CYANOGENMOD
-	fbdev->vsync_thread = kthread_run(s3cfb_wait_for_vsync_thread,
-			fbdev, "s3cfb-vsync");
-	if (fbdev->vsync_thread == ERR_PTR(-ENOMEM)) {
-		dev_err(fbdev->dev, "failed to run vsync thread\n");
-		fbdev->vsync_thread = NULL;
+	if (!sysctl_cm_support) {
+		fbdev->vsync_thread = kthread_run(s3cfb_wait_for_vsync_thread,
+				fbdev, "s3cfb-vsync");
+		if (fbdev->vsync_thread == ERR_PTR(-ENOMEM)) {
+			dev_err(fbdev->dev, "failed to run vsync thread\n");
+			fbdev->vsync_thread = NULL;
+		}
 	}
-#endif
 
 	ret = device_create_file(&(pdev->dev), &dev_attr_win_power);
 	if (ret < 0)
@@ -1192,10 +1174,8 @@ static int __devexit s3cfb_remove(struct platform_device *pdev)
 
 	regulator_disable(fbdev->regulator);
 
-#ifndef CONFIG_FOR_CYANOGENMOD
-	if (fbdev->vsync_thread)
+	if (fbdev->vsync_thread && !sysctl_cm_support)
 		kthread_stop(fbdev->vsync_thread);
-#endif
 
 	kfree(fbdev->fb);
 	kfree(fbdev);
