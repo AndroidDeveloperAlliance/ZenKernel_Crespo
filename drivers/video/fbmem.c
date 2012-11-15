@@ -32,10 +32,11 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/fb.h>
+#include <linux/cm_support.h>
 
 #include <asm/fb.h>
 
-#if defined(CONFIG_FB_S3C) && defined(CONFIG_FOR_CYANOGENMOD)
+#if defined(CONFIG_FB_S3C)
 #include "samsung/s3cfb.h"
 #endif
 
@@ -1173,8 +1174,8 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 	default:
 // Skip mutex for vsync poll because it's in its own thread
-#if defined(CONFIG_FB_S3C) && defined(CONFIG_FOR_CYANOGENMOD)
-		if (cmd != S3CFB_WAIT_FOR_VSYNC)
+#if defined(CONFIG_FB_S3C)
+		if (cmd != S3CFB_WAIT_FOR_VSYNC && sysctl_cm_support)
 #endif
 		if (!lock_fb_info(info))
 			return -ENODEV;
@@ -1183,8 +1184,8 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			ret = fb->fb_ioctl(info, cmd, arg);
 		else
 			ret = -ENOTTY;
-#if defined(CONFIG_FB_S3C) && defined(CONFIG_FOR_CYANOGENMOD)
-		if (cmd != S3CFB_WAIT_FOR_VSYNC)
+#if defined(CONFIG_FB_S3C)
+		if (cmd != S3CFB_WAIT_FOR_VSYNC && sysctl_cm_support)
 #endif
 		unlock_fb_info(info);
 	}

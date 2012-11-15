@@ -63,3 +63,5 @@ obj-$(CONFIG_ZEN_INFO_SYFS_INTERFACE) += zen_info_sysfs.o
 obj-$(CONFIG_FSYNC_CONTROL)	+= fsync_control.o
 obj-$(CONFIG_CPU_DIDLE)		+= deep_idle.o
 obj-$(CONFIG_CUSTOM_VOLTAGE)	+= custom_voltage.o
+obj-$(CONFIG_SAMSUNG_MODEMCTL)	+= samsung_modemctl/
+obj-y				+= cm_support.o
