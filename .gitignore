@@ -79,3 +79,6 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# zen
+zip_template/kernel/zImage
